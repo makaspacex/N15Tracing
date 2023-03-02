@@ -50,23 +50,32 @@ class NTraceModel(Process):
 
     def run(self):
         while not self.k_queue.empty():
+            save_file_path = None
             try:
                 k_kinetics = np.array(self.k_queue.get(1, timeout=100))
                 print(f"{self.p_name} {k_kinetics}")
                 k_str = "".join([f"{x}" for x in k_kinetics])
                 k_order = int(k_str,2)
                 save_file_path = f"saved_idata-v2/{k_order}-idata.dt"
-                if os.path.exists(save_file_path):
+                
+                Path(save_file_path).parent.mkdir(parents=True, exist_ok=True)
+
+                if  Path(save_file_path).exists() or Path(save_file_path + '.fail').exists():
                     continue
-                Path(save_file_path).touch()
+                
+                Path(save_file_path+'.running').touch(exist_ok=True)
+
                 dataset = self.dataset
                 mcmc_model = core.get_model(dataset, self.t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, distance=core.distance_func, epsilon=core.epsilon, c0_type=0)
                 idata = pm.sample_smc(draws=self.draws, model=mcmc_model,  chains=self.cores, cores=self.cores, progressbar=False)
-
                 pickle.dump(idata,open(save_file_path, 'wb'))
             except Exception as e:
-                pass
-
+                if save_file_path is not None:
+                    Path(save_file_path + '.fail').touch()
+            finally:
+                if Path(save_file_path + '.running').exists():
+                    Path(save_file_path + '.running').unlink()
+            
 
 def mutil_run():
     kk_list_all = list(product([0,1], repeat=11))[:1024]
