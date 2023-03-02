@@ -1,0 +1,15 @@
+
+# mac  平台
+
+### ks normal
+co是固定值 draws=2000 core和chain都是1 r2大概95% 部分点没有落到曲线上 运行时间26m, debian51m 具体见output04-mac-01.png和odes-exp04-idata-4-number-single-core-from-core.py-success.dt
+co是halfnorm draws=2000 core和chain都是1 r2大概60  运行时间45 具体见output04-mac-02.png和odes-exp04-idata-4-number-single-core-halfnorms-from-core.py-success.dt
+co是halfnorm draws=2000 core和chain都是4 r2大概60  运行时间55 具体见output04-mac-03.png和odes-exp04-idata-4-number-4core-halfnorms-from-core.py-success.dt
+
+
+### ks halfnormal
+
+
+
+
+
