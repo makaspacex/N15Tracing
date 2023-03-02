@@ -89,8 +89,8 @@ def mutil_run():
     cores = 1
 
     p_list = []
-    n_cpu = int(cpu_count()/cores)
-    
+    n_cpu = int(cpu_count()-4/cores)
+
 
     print(cpu_count(), n_cpu)
     
