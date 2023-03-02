@@ -74,7 +74,7 @@ class NTraceModel(Process):
                     Path(save_file_path + '.fail').touch()
             finally:
                 if Path(save_file_path + '.running').exists():
-                    Path(save_file_path + '.running').unlink()
+                    os.remove(save_file_path + '.running')
             
 
 def mutil_run():

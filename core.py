@@ -73,10 +73,55 @@ class MyDataset(object):
         self.errors = self.df[self.error_names].values
     
     
-    def set_as_sim_dataset(self, dcdt_fuc, t_eval, y0, args):
+    def set_as_sim_dataset(self, dcdt_fuc, t_eval, y0, args, t0=None):
+        # 默认情况下 t0= t_eval[0]
+        if t_eval[-1] < t_eval[0]:
+            raise Exception("不支持反向模式")
         
-        y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
-        
+        if t0 is None:
+            y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
+        else:
+            _i = -1
+            insert = False
+            for i, x in enumerate(t_eval):
+                if x == t0:
+                    _i = i
+                    break
+            if _i == -1:
+                # 没有找到就插入
+                insert = True
+                t_eval = list(t_eval) + [t0]
+                t_eval = sorted(t_eval)
+                _i = -1
+                for i, x in enumerate(t_eval):
+                    if x == t0:
+                        _i = i
+                        break
+                if _i == -1:
+                    raise Exception("没有找到t0的位置")       
+
+            # [7,6,5,4,3,2,1,0]
+            # [0,1,2,3,4,5,6,7,8]
+            # 假设t0 = 2, _i = 2
+            
+            # 反向的
+            t_eval1 = np.array(t_eval[:_i+1])[::-1]
+            y1 = odeint(dcdt_fuc, y0=y0, t=t_eval1, args=args)
+
+            # 正向的
+            t_eval2 = np.array(t_eval[_i:])
+            y2 = odeint(dcdt_fuc, y0=y0, t=t_eval2, args=args)
+
+            if not insert:
+                t = np.concatenate([t_eval1[::-1][:-1],t_eval2])
+                y = np.concatenate([y1[::-1][:-1],y2])
+            else:
+                t = np.concatenate([t_eval1[::-1][:-1],t_eval2[1:]])
+                y = np.concatenate([y1[::-1][:-1],y2[1:]])
+
+            t_eval = t
+
+
         # y.shape (size, 10)
         df_new = pd.DataFrame(columns=['time'] + self.cct_names)
         df_new['time'] = t_eval
@@ -411,9 +456,26 @@ def XJOutFilter():
 
 
 if __name__ == '__main__':
-    with XJOutFilter():
-        print("hello there")
-        time.sleep(1)
-        print("a\nprint\nof\nmany\nlines")
-        print("goodbye ", end="")
-        print("for now")
+    pass
+    db_csv_path = "dataset/data.csv"
+    idata_save_path = "odes-exp04-idata-4-number-1core-c0number-halfnormks-from-core.py-success.dt"
+
+    dataset_ori = MyDataset(db_csv_path)
+    df_ori = dataset_ori.get_df()
+    cct_names, rates_names, error_names = dataset_ori.get_var_col_names()
+    c0 = df_ori[cct_names].iloc[0].values
+    # 假设都是一级动力学
+    k_kinetics = np.repeat(1, 11).astype(np.uint8) 
+    # k_kinetics = np.array([0,0,0,0,1,1,0,0,1,1,0]).astype(np.uint8) 
+    ks = np.array([0.00071942, 0.00269696, 0.00498945, 0.00444931, 0.00571299, 0.00801272, 0.00131931, 0.00319959, 0.00415571, 0.00228432, 0.00177611])
+    #  =======================================================
+
+    # t_eval = np.linspace(0, 150, 0.5)
+    t_eval = np.arange(0, 150, 2)
+
+    dataset = MyDataset(db_csv_path)
+    df = dataset.get_df()
+    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    c0 = df[cct_names].iloc[0].values
+    dataset.set_as_sim_dataset(dcdt_func_for_odeint, t_eval, c0, t0=0.5, args=(ks, k_kinetics))
+    df = dataset.get_df()
