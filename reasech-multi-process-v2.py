@@ -15,27 +15,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-import arviz as az
-import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
 from itertools import product
-import os.path as osp
-from scipy.optimize import leastsq
-import time
-from scipy.integrate import solve_ivp
-from scipy.integrate import odeint
-import math
-from copy import deepcopy
 from multiprocessing import Process, Queue, cpu_count
-from tqdm import  tqdm
-from datetime import datetime
 import pickle
 import os
 from pathlib import Path
 import core
+import multiprocessing
+
+# multiprocessing.set_start_method('spawn')  # default on WinOS or MacOS
+# multiprocessing.set_start_method('fork')   # default on Linux (UnixOS)
+
+# 请注意：我说 分支fork 在初始化创建多进程的时候比 分产spawn 快，而不是说高性能计算会比较快。
+# 通常高性能计算需要让程序运行很久，因此为了节省内存以及进程安全，我建议选择 spawn。
+# https://zhuanlan.zhihu.com/p/340657122
 
 
 class NTraceModel(Process):
@@ -75,9 +70,9 @@ class NTraceModel(Process):
             finally:
                 if Path(save_file_path + '.running').exists():
                     os.remove(save_file_path + '.running')
-            
 
-def mutil_run():
+if __name__ == '__main__':
+    multiprocessing.set_start_method('spawn')
     kk_list_all = list(product([0,1], repeat=11))[:1024]
     q = Queue(10000)
     for k_k in kk_list_all:
@@ -89,8 +84,7 @@ def mutil_run():
     cores = 1
 
     p_list = []
-    n_cpu = int(cpu_count()-4/cores)
-
+    n_cpu = int(cpu_count()/cores) -1
 
     print(cpu_count(), n_cpu)
     
@@ -101,8 +95,4 @@ def mutil_run():
     for p in p_list:
         p.join()
     print("all_finished")
-
-
-if __name__ == '__main__':
-    mutil_run()
 

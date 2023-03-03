@@ -432,6 +432,8 @@ class WriteProcessor:
             self.buf = ""
             buf = buf[newline_index + 1:]
             # perform complex calculations... or just print with a note.
+            if "lsoda--  warning" in data:
+                continue
             self.real_stdout.write("fiddled with " + data)
     
     def flush(self):
@@ -451,12 +453,43 @@ class WriteProcessor:
 #         self.ff.__exit__(exc_type, exc_val, exc_tb)
 #         return True
 
-def XJOutFilter():
-    return redirect_stdout(WriteProcessor())
+from io import StringIO
+import contextlib
+import contextlib, sys
 
+@contextlib.contextmanager
+def log_print(file):
+    # capture all outputs to a log file while still printing it
+    class Logger:
+        def __init__(self, file):
+            self.terminal = sys.stdout
+            self.log = file
+
+        def write(self, message):
+            self.terminal.write("www" + message)
+            self.log.write("ddddd" + message)
+
+        def __getattr__(self, attr):
+            return getattr(self.terminal, attr)
+
+    logger = Logger(file)
+
+    _stdout = sys.stdout
+    _stderr = sys.stderr
+    sys.stdout = logger
+    sys.stderr = logger
+    try:
+        yield logger.log
+    finally:
+        sys.stdout = _stdout
+        sys.stderr = _stderr
 
 if __name__ == '__main__':
-    pass
+    import io
+    with log_print(StringIO()):
+        for x in range(10):
+            print(f"adad{x}")
+    exit()
     db_csv_path = "dataset/data.csv"
     idata_save_path = "odes-exp04-idata-4-number-1core-c0number-halfnormks-from-core.py-success.dt"
 
