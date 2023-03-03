@@ -4,19 +4,12 @@ import arviz as az
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-
 import pymc as pm
-from pymc.ode import DifferentialEquation
-
-from itertools import product
 import os.path as osp
-from scipy.optimize import leastsq
-from scipy.integrate import solve_ivp
-from scipy.integrate import odeint
 import math
 import time
 from datetime import datetime
-from scipy.integrate import odeint
+from scipy.integrate import odeint, solve_ivp
 
 import sys
 from contextlib import redirect_stdout
@@ -79,7 +72,10 @@ class MyDataset(object):
             raise Exception("不支持反向模式")
         
         if t0 is None:
-            y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
+            # y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
+            y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=args)
+            y = y_s.y.transpose(1,0)
+
         else:
             _i = -1
             insert = False
@@ -106,11 +102,20 @@ class MyDataset(object):
             
             # 反向的
             t_eval1 = np.array(t_eval[:_i+1])[::-1]
-            y1 = odeint(dcdt_fuc, y0=y0, t=t_eval1, args=args)
+            
+            y1_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval1), np.max(t_eval1)), y0=y0, t_eval=t_eval1, args=args)
+            if len(t_eval1) != len(y1_s.t):
+                y1 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval1, args=args)
+            else:
+                y1 = y1_s.y.transpose(1,0)
 
             # 正向的
             t_eval2 = np.array(t_eval[_i:])
-            y2 = odeint(dcdt_fuc, y0=y0, t=t_eval2, args=args)
+            y2_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval2), np.max(t_eval2)), y0=y0, t_eval=t_eval2, args=args)
+            if len(t_eval2) != len(y2_s.t):
+                y2 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval2, args=args)
+            else:
+                y2 = y2_s.y.transpose(1,0)
 
             if not insert:
                 t = np.concatenate([t_eval1[::-1][:-1],t_eval2])
@@ -168,7 +173,9 @@ def get_format_time(f_s=None):
         f_s = "%Y-%-m-%d %H:%M:%S"
         # return datetime.now().strftime(f_s) + haomiao
     return datetime.now().strftime(f_s)
-def get_dcdt_func(k_kinetics):
+
+
+def get_dcdt_func_for_sunode(k_kinetics):
     k_kinetics = np.array(k_kinetics).astype(np.uint8)
     def _dcdt_func(t, c, p):
         r1 = p.k1 * c.xN2 if k_kinetics[0] == 1 else p.k1
@@ -214,8 +221,52 @@ def get_dcdt_func(k_kinetics):
     
     return _dcdt_func
 
-def dcdt_func_for_odeint(c, t, ks, k_kinetics):
 
+def get_dcdts(c_first=False):
+
+    def dcdt_func(c, t, *args):
+        # print(c, t, ks, k_kinetics)
+        # print()
+        if not c_first:
+            _x = c
+            c = t
+            t = _x
+
+        ks, k_kinetics = args
+        c_xNH3, c_xNO3, c_xNO2, c_xNOrg, c_xN2, c_ANH3, c_ANO3, c_ANO2, c_ANOrg, c_AN2 = c
+        
+        r1 = ks[0] * c_xN2 if k_kinetics[0] == 1 else ks[0]
+        r2 = ks[1] * c_xNH3 if k_kinetics[1] == 1 else ks[1]
+        r3 = ks[2] * c_xNO2 if k_kinetics[2] == 1 else ks[2]
+        r4 = ks[3] * c_xNO3 if k_kinetics[3] == 1 else ks[3]
+        r5 = ks[4] * c_xNO2 if k_kinetics[4] == 1 else ks[4]
+        r6 = ks[5] * c_xNO2 * c_xNO3 if k_kinetics[5] == 1 else ks[5]
+        r7 = ks[6] * c_xNO3 if k_kinetics[6] == 1 else ks[6]
+        r8 = ks[7] * c_xNO3 if k_kinetics[7] == 1 else ks[7]
+        r9 = ks[8] * c_xNH3 if k_kinetics[8] == 1 else ks[8]
+        r10 = ks[9] * c_xNOrg if k_kinetics[9] == 1 else ks[9]
+        r11 = ks[10] * c_xNOrg if k_kinetics[10] == 1 else ks[10]
+        
+        dc_xNH3 = 2 * r1 + r7 + r10 - r2 - r6 - r9
+        dc_xNO3 = r3 - r7 - r4 - r8 + r11
+        dc_xNO2 = r2 + r4 - r3 - r6 - 2 * r5
+        dc_xNOrg = r8 + r9 - r10 - r11
+        dc_xN2 = r5 + r6 - r1
+        dc_ANH3 = (2 * r1 * (c_AN2 - c_ANH3) + (c_ANO3 - c_ANH3) * r7 + (c_ANOrg - c_ANH3) * r10) / c_xNH3
+        dc_ANO3 = ((c_ANO2 - c_ANO3) * r2 + (c_ANOrg - c_ANO3) * r11) / c_xNO3
+        dc_ANO2 = ((c_ANH3 - c_ANO2) * r2 + (c_ANO3 - c_ANO2) * r4) / c_xNO2
+        dc_ANOrg = ((c_ANO3 - c_ANOrg) * r8 + (c_ANH3 - c_ANOrg) * r9) / c_xNOrg
+        dc_AN2 = ((c_ANO2 - c_AN2) * r5 + (c_ANO2 * c_ANH3 - c_AN2) * r6) / c_xN2
+        
+        dcdts = [dc_xNH3, dc_xNO3, dc_xNO2, dc_xNOrg, dc_xN2, dc_ANH3, dc_ANO3, dc_ANO2, dc_ANOrg, dc_AN2]
+        return np.array(dcdts)
+
+    return dcdt_func
+
+
+def dcdt_func_for_diffrax(t, c, args):
+    
+    ks, k_kinetics = args
     # print(c, t, ks, k_kinetics)
     # print()
     c_xNH3, c_xNO3, c_xNO2, c_xNOrg, c_xN2, c_ANH3, c_ANO3, c_ANO2, c_ANOrg, c_AN2 = c
@@ -231,7 +282,6 @@ def dcdt_func_for_odeint(c, t, ks, k_kinetics):
     r9 = ks[8] * c_xNH3 if k_kinetics[8] == 1 else ks[8]
     r10 = ks[9] * c_xNOrg if k_kinetics[9] == 1 else ks[9]
     r11 = ks[10] * c_xNOrg if k_kinetics[10] == 1 else ks[10]
-    
     
 
     dc_xNH3 = 2 * r1 + r7 + r10 - r2 - r6 - r9
@@ -251,8 +301,14 @@ def dcdt_func_for_odeint(c, t, ks, k_kinetics):
 
 # simulator function
 def competition_model(rng, t_eval, y0,  ks, k_kinetics, size=None):
-    # print(y0)
-    y = odeint(dcdt_func_for_odeint, y0=y0, t=t_eval, args=(ks, k_kinetics))
+    # _y = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval, args=(ks, k_kinetics))
+    y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=(ks, k_kinetics))
+    y = y_s.y.transpose(1,0)
+    if len(y_s.t) != len(t_eval):
+        # print(y.shape, y_s.t)
+        r,c = len(t_eval), len(y0)
+        y_board = np.ones((r,c),dtype=np.float64) * np.inf
+        return y_board
     return y
 
 def get_predict_ks(idata):
@@ -395,7 +451,7 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
         y_hat, _, problem, solver, _, _ = sunode.wrappers.as_pytensor.solve_ivp(
             y0=c0,
             params=parames,
-            rhs=get_dcdt_func(k_kinetics),
+            rhs=get_dcdt_func_for_sunode(k_kinetics),
             tvals=times,
             t0=times[0],
         )

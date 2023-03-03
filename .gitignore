@@ -4,3 +4,4 @@ save_idata/
 .DS_Store
 __pycache__/
 saved_idata-v2/
+test/
