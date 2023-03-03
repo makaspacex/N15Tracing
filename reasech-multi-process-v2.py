@@ -24,6 +24,8 @@ import os
 from pathlib import Path
 import core
 import multiprocessing
+import time
+import subprocess
 
 # multiprocessing.set_start_method('spawn')  # default on WinOS or MacOS
 # multiprocessing.set_start_method('fork')   # default on Linux (UnixOS)
@@ -59,11 +61,18 @@ class NTraceModel(Process):
                     continue
                 
                 Path(save_file_path+'.running').touch(exist_ok=True)
+                
+                s_time = time.time()
+                str_f_s_time = core.get_format_time()
 
                 dataset = self.dataset
                 mcmc_model = core.get_model(dataset, self.t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, distance=core.distance_func, epsilon=core.epsilon, c0_type=0)
                 idata = pm.sample_smc(draws=self.draws, model=mcmc_model,  chains=self.cores, cores=self.cores, progressbar=False)
                 pickle.dump(idata,open(save_file_path, 'wb'))
+                cost_time = int(time.time() - s_time)
+                str_f_e_time = core.get_format_time()
+                subprocess.call(f'echo \'"{save_file_path}", "s:{str_f_s_time}","e:{str_f_e_time}","{cost_time}"\' >> model-cost_time.csv', shell=True)
+
             except Exception as e:
                 if save_file_path is not None:
                     Path(save_file_path + '.fail').touch()
@@ -84,7 +93,7 @@ if __name__ == '__main__':
     cores = 1
 
     p_list = []
-    n_cpu = int(cpu_count()/cores) -1
+    n_cpu = int(cpu_count()/cores) -2
 
     print(cpu_count(), n_cpu)
     

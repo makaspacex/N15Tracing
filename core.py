@@ -165,8 +165,8 @@ class MyDataset(object):
 def get_format_time(f_s=None):
     haomiao = str(time.time()).split('.')[-1]
     if f_s is None:
-        f_s = "%Y-%-m-%d %H:%M:%S."
-        return datetime.now().strftime(f_s) + haomiao
+        f_s = "%Y-%-m-%d %H:%M:%S"
+        # return datetime.now().strftime(f_s) + haomiao
     return datetime.now().strftime(f_s)
 def get_dcdt_func(k_kinetics):
     k_kinetics = np.array(k_kinetics).astype(np.uint8)
