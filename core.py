@@ -14,6 +14,15 @@ from scipy.integrate import odeint, solve_ivp
 import sys
 from contextlib import redirect_stdout
 
+
+def xj_diff_solve_ivp(y0, t_eval, args):
+    y_s = solve_ivp(get_dcdts(c_first=False), t_span=(t_eval[0], t_eval[-1]), y0=y0, t_eval=t_eval, args=args)
+    if len(y_s.t) == len(t_eval):
+        y = y_s.y.transpose(1,0)
+    else:
+        y = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval, args=args)
+    return y
+
 class MyDataset(object):
 
     def __init__(self, dataset_path):
@@ -66,15 +75,16 @@ class MyDataset(object):
         self.errors = self.df[self.error_names].values
     
     
-    def set_as_sim_dataset(self, dcdt_fuc, t_eval, y0, args, t0=None):
+    def set_as_sim_dataset(self, t_eval, y0, args, t0=None):
         # 默认情况下 t0= t_eval[0]
         if t_eval[-1] < t_eval[0]:
             raise Exception("不支持反向模式")
         
         if t0 is None:
             # y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
-            y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=args)
-            y = y_s.y.transpose(1,0)
+            # y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=args)
+            # y = y_s.y.transpose(1,0)
+            y = xj_diff_solve_ivp(y0, t_eval, args)
 
         else:
             _i = -1
@@ -103,19 +113,22 @@ class MyDataset(object):
             # 反向的
             t_eval1 = np.array(t_eval[:_i+1])[::-1]
             
-            y1_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval1), np.max(t_eval1)), y0=y0, t_eval=t_eval1, args=args)
-            if len(t_eval1) != len(y1_s.t):
-                y1 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval1, args=args)
-            else:
-                y1 = y1_s.y.transpose(1,0)
+            # y1_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval1), np.max(t_eval1)), y0=y0, t_eval=t_eval1, args=args)
+            # if len(t_eval1) != len(y1_s.t):
+            #     y1 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval1, args=args)
+            # else:
+            #     y1 = y1_s.y.transpose(1,0)
+            y1 = xj_diff_solve_ivp(y0, t_eval1, args)
+            
 
             # 正向的
             t_eval2 = np.array(t_eval[_i:])
-            y2_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval2), np.max(t_eval2)), y0=y0, t_eval=t_eval2, args=args)
-            if len(t_eval2) != len(y2_s.t):
-                y2 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval2, args=args)
-            else:
-                y2 = y2_s.y.transpose(1,0)
+            # y2_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval2), np.max(t_eval2)), y0=y0, t_eval=t_eval2, args=args)
+            # if len(t_eval2) != len(y2_s.t):
+            #     y2 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval2, args=args)
+            # else:
+            #     y2 = y2_s.y.transpose(1,0)
+            y2 = xj_diff_solve_ivp(y0, t_eval2, args)
 
             if not insert:
                 t = np.concatenate([t_eval1[::-1][:-1],t_eval2])
@@ -301,14 +314,16 @@ def dcdt_func_for_diffrax(t, c, args):
 
 # simulator function
 def competition_model(rng, t_eval, y0,  ks, k_kinetics, size=None):
-    # _y = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval, args=(ks, k_kinetics))
-    y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=(ks, k_kinetics))
-    y = y_s.y.transpose(1,0)
-    if len(y_s.t) != len(t_eval):
-        # print(y.shape, y_s.t)
-        r,c = len(t_eval), len(y0)
-        y_board = np.ones((r,c),dtype=np.float64) * np.inf
-        return y_board
+    # y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=(ks, k_kinetics))
+    # if len(y_s.t) == len(t_eval):
+    #     y = y_s.y.transpose(1,0)
+    # else:
+    #     # r,c = len(t_eval), len(y0)
+    #     # y_board = np.ones((r,c),dtype=np.float64) * np.inf
+    #     # return y_board
+    #     y = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval, args=(ks, k_kinetics))
+    args = (ks, k_kinetics)
+    y = xj_diff_solve_ivp(y0, t_eval, args)
     return y
 
 def get_predict_ks(idata):
