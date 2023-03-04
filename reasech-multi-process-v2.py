@@ -26,7 +26,7 @@ import core
 import multiprocessing
 import time
 import subprocess
-
+import argparse
 # multiprocessing.set_start_method('spawn')  # default on WinOS or MacOS
 # multiprocessing.set_start_method('fork')   # default on Linux (UnixOS)
 
@@ -80,9 +80,18 @@ class NTraceModel(Process):
                 if Path(save_file_path + '.running').exists():
                     os.remove(save_file_path + '.running')
 
+def get_opt():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--start', type=int, required=True)
+    parser.add_argument('--end', type=int, required=True)
+    parser.add_argument('--ncpu', type=int, default=-1)
+    opt = parser.parse_args()
+    return opt
+
 if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
-    kk_list_all = list(product([0,1], repeat=11))[:1024]
+    opt = get_opt()
+    kk_list_all = list(product([0,1], repeat=11))[opt.start:opt.end]
     q = Queue(10000)
     for k_k in kk_list_all:
         q.put(k_k)
@@ -93,11 +102,13 @@ if __name__ == '__main__':
     cores = 1
 
     p_list = []
-    n_cpu = int(cpu_count()/cores) -2
+    ncpu = opt.ncpu
+    if opt.ncpu == -1:
+        ncpu = int(cpu_count()/cores) -2
 
-    print(cpu_count(), n_cpu)
+    print(cpu_count(), ncpu)
     
-    for i in range(n_cpu):
+    for i in range(ncpu):
         p = NTraceModel(f"Process-{i}", dataset, q, t_eval=t_eval, cores=cores)
         p.start()
         p_list.append(p)
