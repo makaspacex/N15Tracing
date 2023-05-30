@@ -62,7 +62,7 @@ def get_dcdt_func_for_sunode(k_kinetics):
     return _dcdt_func
 
 
-def get_dcdts(c_first=False):
+def get_dcdts_for_scipy(c_first=False):
 
     def dcdt_func(c, t, *args):
         # print(c, t, ks, k_kinetics)
@@ -139,29 +139,24 @@ def dcdt_func_for_diffrax(t, c, args):
 
     return np.array(dcdts)
 
+def get_dcdts_for_solve_ivp():
+    return get_dcdts_for_scipy(c_first=False)
+
+def get_dcdts_for_scipy_odeint():
+    return get_dcdts_for_scipy(c_first=True)
+
+
 # simulator function
 def competition_model(rng, t_eval, y0,  ks, k_kinetics, size=None):
-    # y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=(ks, k_kinetics))
-    # if len(y_s.t) == len(t_eval):
-    #     y = y_s.y.transpose(1,0)
-    # else:
-    #     # r,c = len(t_eval), len(y0)
-    #     # y_board = np.ones((r,c),dtype=np.float64) * np.inf
-    #     # return y_board
-    #     y = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval, args=(ks, k_kinetics))
     args = (ks, k_kinetics)
     y = xj_diff_solve_ivp(y0, t_eval, args)
     return y
 
 def xj_diff_solve_ivp(y0, t_eval, args, ivp_first=False):
     if ivp_first:
-        y_s = solve_ivp(get_dcdts(c_first=False), t_span=(t_eval[0], t_eval[-1]), y0=y0, t_eval=t_eval, args=args)
-    
+        y_s = solve_ivp(get_dcdts_for_solve_ivp, t_span=(t_eval[0], t_eval[-1]), y0=y0, t_eval=t_eval, args=args)
     if ivp_first and len(y_s.t) == len(t_eval):
         y = y_s.y.transpose(1,0)
     else:
-        y = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval, args=args)
+        y = odeint(get_dcdts_for_scipy_odeint(), y0=y0, t=t_eval, args=args)
     return y
-
-
-

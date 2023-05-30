@@ -105,22 +105,10 @@ class MyDataset(object):
             
             # 反向的
             t_eval1 = np.array(t_eval[:_i+1])[::-1]
-            
-            # y1_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval1), np.max(t_eval1)), y0=y0, t_eval=t_eval1, args=args)
-            # if len(t_eval1) != len(y1_s.t):
-            #     y1 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval1, args=args)
-            # else:
-            #     y1 = y1_s.y.transpose(1,0)
             y1 = xj_diff_solve_ivp(y0, t_eval1, args)
-            
 
             # 正向的
             t_eval2 = np.array(t_eval[_i:])
-            # y2_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval2), np.max(t_eval2)), y0=y0, t_eval=t_eval2, args=args)
-            # if len(t_eval2) != len(y2_s.t):
-            #     y2 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval2, args=args)
-            # else:
-            #     y2 = y2_s.y.transpose(1,0)
             y2 = xj_diff_solve_ivp(y0, t_eval2, args)
 
             if not insert:
@@ -173,15 +161,26 @@ class MyDataset(object):
         return vars_max
 
 
-def plot_dataset(dataset, dataset_pred=None):
-    
+def plot_dataset(dataset, dataset_pred=None, fig=None):
+
     df = dataset.get_df()
     cct_names, rates_names, error_names = dataset.get_var_col_names()
-    
+
     cols = 5
     rows = math.ceil(len(cct_names) / cols)
 
-    fig, fig_axes = plt.subplots(ncols=cols, nrows=rows, figsize=(4.2 * cols, 4 * rows), dpi=100)
+    if fig:
+        # fig.clear()
+        fig = plt.figure(fig.get_label())
+        fig.set_dpi(100)
+        fig.set_size_inches(4.2 * cols, 4 * rows)
+        if len(fig.axes) != cols * rows:
+            fig.clear()
+            fig_axes = fig.subplots(ncols=cols, nrows=rows)
+        else:
+            fig_axes = np.array(fig.axes)
+    else:
+        fig, fig_axes = plt.subplots(ncols=cols, nrows=rows, figsize=(4.2 * cols, 4 * rows), dpi=100)
     if isinstance(fig_axes, np.ndarray):
         fig_axes = fig_axes.reshape(-1)
     else:
@@ -191,25 +190,25 @@ def plot_dataset(dataset, dataset_pred=None):
         if i >= len(cct_names):
             axes.axis('off')
             continue
-        
         y_name = cct_names[i]
         Y = df[y_name].values
+
+        axes.clear()
         axes.plot(df['time'].values, Y, '*', label=f"ob")
         axes.set_ylabel(f'cct_{y_name}')
         axes.set_xlabel(f'time(h)')
 
         # axes.plot(df['time'].values, df[rates_names[i]].values, '+', label=f"rate")
-        
+
         if dataset_pred:
             _df_pred = dataset_pred.get_df()
             t_eval = _df_pred['time'].values
             axes.plot(t_eval, _df_pred[y_name].values, 'r', label=f"c(t)")
-        
-        
-        # axes.plot(t_eval, dcdt_df[y_name].values,'g', label=f"c'(t)")
 
+        # axes.plot(t_eval, dcdt_df[y_name].values,'g', label=f"c'(t)")
         axes.legend()
         # axes.set_title(f"{y_name}", fontsize=14)
 
     plt.tight_layout()
-    plt.show()
+    plt.draw()
+    plt.pause(0.1)

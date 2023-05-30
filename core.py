@@ -1,5 +1,7 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
+import random
+
 import arviz as az
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,10 +17,10 @@ import sys
 from contextlib import redirect_stdout
 
 
-def xj_diff_solve_ivp(y0, t_eval, args, ivp_first=False):
+def xj_diff_solve_ivp(y0, t_eval, args, ivp_first=True):
     if ivp_first:
         y_s = solve_ivp(get_dcdts(c_first=False), t_span=(t_eval[0], t_eval[-1]), y0=y0, t_eval=t_eval, args=args)
-    
+
     if ivp_first and len(y_s.t) == len(t_eval):
         y = y_s.y.transpose(1,0)
     else:
@@ -30,14 +32,14 @@ class MyDataset(object):
     def __init__(self, dataset_path):
 
         self.dataset_path = dataset_path
-        
+
         df = pd.read_csv(dataset_path)
-        
+
         self.df = df
         self._setup()
-    
+
     def _setup(self):
-        
+
         df = self.df
         # 数据初步处理
         # 计算反应速率rate，初始速率固定设置为0
@@ -75,85 +77,86 @@ class MyDataset(object):
         self.cct = self.df[self.cct_names].values
         self.rates = self.df[self.rates_names].values
         self.errors = self.df[self.error_names].values
-    
-    
-    def set_as_sim_dataset(self, t_eval, y0, args, t0=None):
+
+
+    def set_as_sim_dataset(self, t_eval, y0, args, t0=None, nowy=None):
         # 默认情况下 t0= t_eval[0]
         if t_eval[-1] < t_eval[0]:
             raise Exception("不支持反向模式")
-        
-        if t0 is None:
-            # y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
-            # y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=args)
-            # y = y_s.y.transpose(1,0)
-            y = xj_diff_solve_ivp(y0, t_eval, args)
+        if nowy is None:
+            if t0 is None:
+                # y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
+                # y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=args)
+                # y = y_s.y.transpose(1,0)
+                y = xj_diff_solve_ivp(y0, t_eval, args)
 
-        else:
-            _i = -1
-            insert = False
-            for i, x in enumerate(t_eval):
-                if x == t0:
-                    _i = i
-                    break
-            if _i == -1:
-                # 没有找到就插入
-                insert = True
-                t_eval = list(t_eval) + [t0]
-                t_eval = sorted(t_eval)
+            else:
                 _i = -1
+                insert = False
                 for i, x in enumerate(t_eval):
                     if x == t0:
                         _i = i
                         break
                 if _i == -1:
-                    raise Exception("没有找到t0的位置")       
+                    # 没有找到就插入
+                    insert = True
+                    t_eval = list(t_eval) + [t0]
+                    t_eval = sorted(t_eval)
+                    _i = -1
+                    for i, x in enumerate(t_eval):
+                        if x == t0:
+                            _i = i
+                            break
+                    if _i == -1:
+                        raise Exception("没有找到t0的位置")
 
-            # [7,6,5,4,3,2,1,0]
-            # [0,1,2,3,4,5,6,7,8]
-            # 假设t0 = 2, _i = 2
-            
-            # 反向的
-            t_eval1 = np.array(t_eval[:_i+1])[::-1]
-            
-            # y1_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval1), np.max(t_eval1)), y0=y0, t_eval=t_eval1, args=args)
-            # if len(t_eval1) != len(y1_s.t):
-            #     y1 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval1, args=args)
-            # else:
-            #     y1 = y1_s.y.transpose(1,0)
-            y1 = xj_diff_solve_ivp(y0, t_eval1, args)
-            
+                # [7,6,5,4,3,2,1,0]
+                # [0,1,2,3,4,5,6,7,8]
+                # 假设t0 = 2, _i = 2
 
-            # 正向的
-            t_eval2 = np.array(t_eval[_i:])
-            # y2_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval2), np.max(t_eval2)), y0=y0, t_eval=t_eval2, args=args)
-            # if len(t_eval2) != len(y2_s.t):
-            #     y2 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval2, args=args)
-            # else:
-            #     y2 = y2_s.y.transpose(1,0)
-            y2 = xj_diff_solve_ivp(y0, t_eval2, args)
+                # 反向的
+                t_eval1 = np.array(t_eval[:_i+1])[::-1]
 
-            if not insert:
-                t = np.concatenate([t_eval1[::-1][:-1],t_eval2])
-                y = np.concatenate([y1[::-1][:-1],y2])
-            else:
-                t = np.concatenate([t_eval1[::-1][:-1],t_eval2[1:]])
-                y = np.concatenate([y1[::-1][:-1],y2[1:]])
+                # y1_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval1), np.max(t_eval1)), y0=y0, t_eval=t_eval1, args=args)
+                # if len(t_eval1) != len(y1_s.t):
+                #     y1 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval1, args=args)
+                # else:
+                #     y1 = y1_s.y.transpose(1,0)
+                y1 = xj_diff_solve_ivp(y0, t_eval1, args)
 
-            t_eval = t
 
+                # 正向的
+                t_eval2 = np.array(t_eval[_i:])
+                # y2_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval2), np.max(t_eval2)), y0=y0, t_eval=t_eval2, args=args)
+                # if len(t_eval2) != len(y2_s.t):
+                #     y2 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval2, args=args)
+                # else:
+                #     y2 = y2_s.y.transpose(1,0)
+                y2 = xj_diff_solve_ivp(y0, t_eval2, args)
+
+                if not insert:
+                    t = np.concatenate([t_eval1[::-1][:-1],t_eval2])
+                    y = np.concatenate([y1[::-1][:-1],y2])
+                else:
+                    t = np.concatenate([t_eval1[::-1][:-1],t_eval2[1:]])
+                    y = np.concatenate([y1[::-1][:-1],y2[1:]])
+
+                t_eval = t
+        else:
+            y = nowy
 
         # y.shape (size, 10)
         df_new = pd.DataFrame(columns=['time'] + self.cct_names)
         df_new['time'] = t_eval
-        
+
         for c_name, col_val in zip(self.cct_names, np.transpose(y, [1,0])):
             df_new[c_name] = col_val
             df_new[f"{c_name}-error"] = 0.001
-        
+
         self.df = df_new
         self._setup()
-        
-    
+
+
     def get_rates(self):
         return self.rates
 
@@ -205,7 +208,7 @@ def get_dcdt_func_for_sunode(k_kinetics):
         r10 = p.k10 * c.xNOrg if k_kinetics[9] == 1 else p.k10
         r11 = p.k11 * c.xNOrg if k_kinetics[10] == 1 else p.k11
 
-        
+
         dc_xNH3 = 2 * r1 + r7 + r10 - r2 - r6 - r9
         dc_xNO3 = r3 - r7 - r4 - r8 + r11
         dc_xNO2 = r2 + r4 - r3 - r6 - 2 * r5
@@ -219,7 +222,7 @@ def get_dcdt_func_for_sunode(k_kinetics):
         dc_AN2 = ((c.ANO2 - c.AN2) * r5 + (c.ANO2 * c.ANH3 - c.AN2) * r6) / c.xN2
 
         # dcdts = [dc_xNH3, dc_xNO3, dc_xNO2, dc_xNOrg, dc_xN2, dc_ANH3, dc_ANO3, dc_ANO2, dc_ANOrg, dc_AN2]
-        
+
         dcdts =  {
             'xNH3': dc_xNH3,
             'xNO3': dc_xNO3,
@@ -233,7 +236,7 @@ def get_dcdt_func_for_sunode(k_kinetics):
             'AN2': dc_AN2,
         }
         return dcdts
-    
+
     return _dcdt_func
 
 
@@ -249,7 +252,7 @@ def get_dcdts(c_first=False):
 
         ks, k_kinetics = args
         c_xNH3, c_xNO3, c_xNO2, c_xNOrg, c_xN2, c_ANH3, c_ANO3, c_ANO2, c_ANOrg, c_AN2 = c
-        
+
         r1 = ks[0] * c_xN2 if k_kinetics[0] == 1 else ks[0]
         r2 = ks[1] * c_xNH3 if k_kinetics[1] == 1 else ks[1]
         r3 = ks[2] * c_xNO2 if k_kinetics[2] == 1 else ks[2]
@@ -261,7 +264,7 @@ def get_dcdts(c_first=False):
         r9 = ks[8] * c_xNH3 if k_kinetics[8] == 1 else ks[8]
         r10 = ks[9] * c_xNOrg if k_kinetics[9] == 1 else ks[9]
         r11 = ks[10] * c_xNOrg if k_kinetics[10] == 1 else ks[10]
-        
+
         dc_xNH3 = 2 * r1 + r7 + r10 - r2 - r6 - r9
         dc_xNO3 = r3 - r7 - r4 - r8 + r11
         dc_xNO2 = r2 + r4 - r3 - r6 - 2 * r5
@@ -272,7 +275,7 @@ def get_dcdts(c_first=False):
         dc_ANO2 = ((c_ANH3 - c_ANO2) * r2 + (c_ANO3 - c_ANO2) * r4) / c_xNO2
         dc_ANOrg = ((c_ANO3 - c_ANOrg) * r8 + (c_ANH3 - c_ANOrg) * r9) / c_xNOrg
         dc_AN2 = ((c_ANO2 - c_AN2) * r5 + (c_ANO2 * c_ANH3 - c_AN2) * r6) / c_xN2
-        
+
         dcdts = [dc_xNH3, dc_xNO3, dc_xNO2, dc_xNOrg, dc_xN2, dc_ANH3, dc_ANO3, dc_ANO2, dc_ANOrg, dc_AN2]
         return np.array(dcdts)
 
@@ -280,12 +283,12 @@ def get_dcdts(c_first=False):
 
 
 def dcdt_func_for_diffrax(t, c, args):
-    
+
     ks, k_kinetics = args
     # print(c, t, ks, k_kinetics)
     # print()
     c_xNH3, c_xNO3, c_xNO2, c_xNOrg, c_xN2, c_ANH3, c_ANO3, c_ANO2, c_ANOrg, c_AN2 = c
-    
+
     r1 = ks[0] * c_xN2 if k_kinetics[0] == 1 else ks[0]
     r2 = ks[1] * c_xNH3 if k_kinetics[1] == 1 else ks[1]
     r3 = ks[2] * c_xNO2 if k_kinetics[2] == 1 else ks[2]
@@ -297,7 +300,7 @@ def dcdt_func_for_diffrax(t, c, args):
     r9 = ks[8] * c_xNH3 if k_kinetics[8] == 1 else ks[8]
     r10 = ks[9] * c_xNOrg if k_kinetics[9] == 1 else ks[9]
     r11 = ks[10] * c_xNOrg if k_kinetics[10] == 1 else ks[10]
-    
+
 
     dc_xNH3 = 2 * r1 + r7 + r10 - r2 - r6 - r9
     dc_xNO3 = r3 - r7 - r4 - r8 + r11
@@ -346,15 +349,26 @@ def get_predict_starts(cct_names, idata):
         predict_s.append(k_v)
     return np.array(predict_s)
 
-def plot_dataset(dataset, dataset_pred=None):
-    
+def plot_dataset(dataset, dataset_pred=None, fig=None):
+
     df = dataset.get_df()
     cct_names, rates_names, error_names = dataset.get_var_col_names()
-    
+
     cols = 5
     rows = math.ceil(len(cct_names) / cols)
 
-    fig, fig_axes = plt.subplots(ncols=cols, nrows=rows, figsize=(4.2 * cols, 4 * rows), dpi=100)
+    if fig:
+        # fig.clear()
+        fig = plt.figure(fig.get_label())
+        fig.set_dpi(100)
+        fig.set_size_inches(4.2 * cols, 4 * rows)
+        if len(fig.axes) != cols * rows:
+            fig.clear()
+            fig_axes = fig.subplots(ncols=cols, nrows=rows)
+        else:
+            fig_axes = np.array(fig.axes)
+    else:
+        fig, fig_axes = plt.subplots(ncols=cols, nrows=rows, figsize=(4.2 * cols, 4 * rows), dpi=100)
     if isinstance(fig_axes, np.ndarray):
         fig_axes = fig_axes.reshape(-1)
     else:
@@ -364,29 +378,28 @@ def plot_dataset(dataset, dataset_pred=None):
         if i >= len(cct_names):
             axes.axis('off')
             continue
-        
         y_name = cct_names[i]
         Y = df[y_name].values
+
+        axes.clear()
         axes.plot(df['time'].values, Y, '*', label=f"ob")
         axes.set_ylabel(f'cct_{y_name}')
         axes.set_xlabel(f'time(h)')
 
         # axes.plot(df['time'].values, df[rates_names[i]].values, '+', label=f"rate")
-        
+
         if dataset_pred:
             _df_pred = dataset_pred.get_df()
             t_eval = _df_pred['time'].values
             axes.plot(t_eval, _df_pred[y_name].values, 'r', label=f"c(t)")
-        
-        
-        # axes.plot(t_eval, dcdt_df[y_name].values,'g', label=f"c'(t)")
 
+        # axes.plot(t_eval, dcdt_df[y_name].values,'g', label=f"c'(t)")
         axes.legend()
         # axes.set_title(f"{y_name}", fontsize=14)
 
     plt.tight_layout()
-    plt.show()
-
+    plt.draw()
+    plt.pause(0.1)
 
 def r2_loss(pred, y):
     r2_loss = 1 - np.square(pred - y).sum() / np.square(y - np.mean(y)).sum()
@@ -396,13 +409,13 @@ def get_model(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_ty
     df = dataset.get_df()
     cct_names, _, _ = dataset.get_var_col_names()
     ccts = dataset.get_cct()
-    
+
     mcmc_model = pm.Model()
     params_n = 11
 
     parames =[]
     c0 = []
-    
+
     with mcmc_model:
         for ki in range(1, params_n + 1):
             if kf_type == 0:
@@ -412,7 +425,7 @@ def get_model(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_ty
             else:
                 p_dense = pm.Normal(f"k{ki}",mu=0, sigma=k_sigma_priors)
             parames.append(p_dense)
-        
+
         if c0_type == 1:
             for c_name in cct_names:
                 _maxx = df[c_name].values.max()
@@ -437,17 +450,17 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
 
     df = dataset.get_df()
     times = df['time'].values
-    
+
     errors = dataset.get_errors()
     rates = dataset.get_rates()
     cct_names, rates_names, error_names = dataset.get_var_col_names()
-        
+
     # 定义参数优化模型
     mcmc_model = pm.Model()
     ## 参数个数
     params_n = 11
     parames ={}
-    
+
     with mcmc_model:
         for ki in range(1, params_n + 1):
             if kf_type == 0:
@@ -455,15 +468,15 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
             else:
                 p_dense = pm.Normal(f"k{ki}",mu=0, sigma=k_sigma_priors)
             parames[f"k{ki}"] = (p_dense, ())
-    
+
     parames['extra']=  np.zeros(1)
-    
+
     c0 = {}
     with mcmc_model:
         for c_name in cct_names:
             _maxx = df[c_name].values.max()
             c0[f"{c_name}"] = (pm.HalfNormal(f"{c_name}_s", sigma=_maxx), ())
-        
+
 
         y_hat, _, problem, solver, _, _ = sunode.wrappers.as_pytensor.solve_ivp(
             y0=c0,
@@ -472,7 +485,7 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
             tvals=times,
             t0=times[0],
         )
-        
+
         sd = pm.HalfNormal('sd')
         for c_name in cct_names:
             pm.Normal(f'{c_name}', mu=y_hat[f"{c_name}"], sigma=sd, observed=df[f"{c_name}"].values)
@@ -508,12 +521,12 @@ class WriteProcessor:
             if "lsoda--  warning" in data:
                 continue
             self.real_stdout.write("fiddled with " + data)
-    
+
     def flush(self):
         self.real_stdout.flush()
 
 # class XJOutFilter(object):
-    
+
 #     def __init__(self) -> None:
 #         pass
 
@@ -557,6 +570,25 @@ def log_print(file):
         sys.stdout = _stdout
         sys.stderr = _stderr
 
+import uuid
+class DynamicShowPlot(object):
+
+    def __init__(self, block=False):
+        self.block = block
+        self.fig = plt.figure(str(uuid.uuid4()))
+    def __enter__(self):
+        import matplotlib as mpl
+        self.old_backend = mpl.get_backend()
+        mpl.use('macosx')
+
+        return self.fig
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        plt.pause(0.05)
+        # plt.ioff()
+        import matplotlib as mpl
+        mpl.use(self.old_backend)
+
 if __name__ == '__main__':
     import io
     with log_print(StringIO()):
@@ -571,8 +603,8 @@ if __name__ == '__main__':
     cct_names, rates_names, error_names = dataset_ori.get_var_col_names()
     c0 = df_ori[cct_names].iloc[0].values
     # 假设都是一级动力学
-    k_kinetics = np.repeat(1, 11).astype(np.uint8) 
-    # k_kinetics = np.array([0,0,0,0,1,1,0,0,1,1,0]).astype(np.uint8) 
+    k_kinetics = np.repeat(1, 11).astype(np.uint8)
+    # k_kinetics = np.array([0,0,0,0,1,1,0,0,1,1,0]).astype(np.uint8)
     ks = np.array([0.00071942, 0.00269696, 0.00498945, 0.00444931, 0.00571299, 0.00801272, 0.00131931, 0.00319959, 0.00415571, 0.00228432, 0.00177611])
     #  =======================================================
 

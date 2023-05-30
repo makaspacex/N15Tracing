@@ -430,4 +430,5 @@ dependencies:
       - nbformat==5.7.0
       - pyrsistent==0.19.2
       - pytensor==2.11.3
+      - torchdiffeq==0.2.3
       - webencodings==0.5.1

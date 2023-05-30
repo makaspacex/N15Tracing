@@ -116,3 +116,20 @@ def log_print(file):
     finally:
         sys.stdout = _stdout
         sys.stderr = _stderr
+
+import uuid
+class DynamicShowPlot(object):
+    def __init__(self, block=False):
+        self.block = block
+        self.fig = plt.figure(str(uuid.uuid4()))
+    def __enter__(self):
+        import matplotlib as mpl
+        self.old_backend = mpl.get_backend()
+        # mpl.use('macosx')
+        return self.fig
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        plt.pause(0.05)
+        # plt.ioff()
+        import matplotlib as mpl
+        mpl.use(self.old_backend)
