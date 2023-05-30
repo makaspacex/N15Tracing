@@ -21,14 +21,14 @@ class MyDataset(object):
     def __init__(self, dataset_path):
 
         self.dataset_path = dataset_path
-        
+
         df = pd.read_csv(dataset_path)
-        
+
         self.df = df
         self._setup()
-    
+
     def _setup(self):
-        
+
         df = self.df
         # 数据初步处理
         # 计算反应速率rate，初始速率固定设置为0
@@ -66,73 +66,86 @@ class MyDataset(object):
         self.cct = self.df[self.cct_names].values
         self.rates = self.df[self.rates_names].values
         self.errors = self.df[self.error_names].values
-    
-    
-    def set_as_sim_dataset(self, t_eval, y0, args, t0=None):
+
+
+    def set_as_sim_dataset(self, t_eval, y0, args, t0=None, nowy=None):
         # 默认情况下 t0= t_eval[0]
         if t_eval[-1] < t_eval[0]:
             raise Exception("不支持反向模式")
-        
-        if t0 is None:
-            # y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
-            # y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=args)
-            # y = y_s.y.transpose(1,0)
-            y = xj_diff_solve_ivp(y0, t_eval, args)
+        if nowy is None:
+            if t0 is None:
+                # y = odeint(dcdt_fuc, y0=y0, t=t_eval, args=args)
+                # y_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval), np.max(t_eval)), y0=y0, t_eval=t_eval, args=args)
+                # y = y_s.y.transpose(1,0)
+                y = xj_diff_solve_ivp(y0, t_eval, args)
 
-        else:
-            _i = -1
-            insert = False
-            for i, x in enumerate(t_eval):
-                if x == t0:
-                    _i = i
-                    break
-            if _i == -1:
-                # 没有找到就插入
-                insert = True
-                t_eval = list(t_eval) + [t0]
-                t_eval = sorted(t_eval)
+            else:
                 _i = -1
+                insert = False
                 for i, x in enumerate(t_eval):
                     if x == t0:
                         _i = i
                         break
                 if _i == -1:
-                    raise Exception("没有找到t0的位置")       
+                    # 没有找到就插入
+                    insert = True
+                    t_eval = list(t_eval) + [t0]
+                    t_eval = sorted(t_eval)
+                    _i = -1
+                    for i, x in enumerate(t_eval):
+                        if x == t0:
+                            _i = i
+                            break
+                    if _i == -1:
+                        raise Exception("没有找到t0的位置")
 
-            # [7,6,5,4,3,2,1,0]
-            # [0,1,2,3,4,5,6,7,8]
-            # 假设t0 = 2, _i = 2
-            
-            # 反向的
-            t_eval1 = np.array(t_eval[:_i+1])[::-1]
-            y1 = xj_diff_solve_ivp(y0, t_eval1, args)
+                # [7,6,5,4,3,2,1,0]
+                # [0,1,2,3,4,5,6,7,8]
+                # 假设t0 = 2, _i = 2
 
-            # 正向的
-            t_eval2 = np.array(t_eval[_i:])
-            y2 = xj_diff_solve_ivp(y0, t_eval2, args)
+                # 反向的
+                t_eval1 = np.array(t_eval[:_i+1])[::-1]
 
-            if not insert:
-                t = np.concatenate([t_eval1[::-1][:-1],t_eval2])
-                y = np.concatenate([y1[::-1][:-1],y2])
-            else:
-                t = np.concatenate([t_eval1[::-1][:-1],t_eval2[1:]])
-                y = np.concatenate([y1[::-1][:-1],y2[1:]])
+                # y1_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval1), np.max(t_eval1)), y0=y0, t_eval=t_eval1, args=args)
+                # if len(t_eval1) != len(y1_s.t):
+                #     y1 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval1, args=args)
+                # else:
+                #     y1 = y1_s.y.transpose(1,0)
+                y1 = xj_diff_solve_ivp(y0, t_eval1, args)
 
-            t_eval = t
 
+                # 正向的
+                t_eval2 = np.array(t_eval[_i:])
+                # y2_s = solve_ivp(get_dcdts(c_first=False), t_span=(np.min(t_eval2), np.max(t_eval2)), y0=y0, t_eval=t_eval2, args=args)
+                # if len(t_eval2) != len(y2_s.t):
+                #     y2 = odeint(get_dcdts(c_first=True), y0=y0, t=t_eval2, args=args)
+                # else:
+                #     y2 = y2_s.y.transpose(1,0)
+                y2 = xj_diff_solve_ivp(y0, t_eval2, args)
+
+                if not insert:
+                    t = np.concatenate([t_eval1[::-1][:-1],t_eval2])
+                    y = np.concatenate([y1[::-1][:-1],y2])
+                else:
+                    t = np.concatenate([t_eval1[::-1][:-1],t_eval2[1:]])
+                    y = np.concatenate([y1[::-1][:-1],y2[1:]])
+
+                t_eval = t
+        else:
+            y = nowy
 
         # y.shape (size, 10)
         df_new = pd.DataFrame(columns=['time'] + self.cct_names)
         df_new['time'] = t_eval
-        
+
         for c_name, col_val in zip(self.cct_names, np.transpose(y, [1,0])):
             df_new[c_name] = col_val
             df_new[f"{c_name}-error"] = 0.001
-        
+
         self.df = df_new
         self._setup()
-        
-    
+
+
     def get_rates(self):
         return self.rates
 

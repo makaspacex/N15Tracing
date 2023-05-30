@@ -41,7 +41,7 @@ from torchdiffeq import odeint_event
 from torchvision import models
 # import torchsummary
 from core_lib import DynamicShowPlot, MyDataset, plot_dataset
-from core_lib import N15TracingModel
+from core_lib import N15TracingModel, N15TracingModel_V2,N15TracingModel_V1
 from core_lib import N15Loss
 
 
@@ -60,17 +60,16 @@ cct_names, _, _ = dataset.get_var_col_names()
 c0 = df[cct_names].iloc[0].values
 # ------------ simulate data -----------------------
 
-
-# ks_true = np.array(
-#     [0.00071942, 0.00269696, 0.00498945, 0.00444931, 0.00571299, 0.00801272, 0.00131931, 0.00319959, 0.00415571,
-#      0.00228432, 0.00177611])
-# dataset = core.MyDataset(db_csv_path)
-# dataset.set_as_sim_dataset(t_eval, c0, t0=0.5, args=(ks_true, k_kinetics))
+ks_true = np.array(
+    [0.00071942, 0.00269696, 0.00498945, 0.00444931, 0.00571299, 0.00801272, 0.00131931, 0.00319959, 0.00415571,
+     0.00228432, 0.00177611])
+dataset = MyDataset(db_csv_path)
+dataset.set_as_sim_dataset(t_eval, c0, t0=0.5, args=(ks_true, k_kinetics))
 
 # --------------------------------
 df = dataset.get_df()
 ccts = df[cct_names].values
-plot_dataset(dataset, dataset)
+# plot_dataset(dataset, dataset)
 
 
 #
@@ -121,37 +120,43 @@ loss_method = "r2l1"
 # Additionally, all solvers available through SciPy are wrapped for use with scipy_solver.
 
 
-model_save_path = f"test/model-best-{method}.pth"
+model_save_path = f"runtime/model-best-{method}.pth"
+device = "cuda:0"
 
-ode_func = N15TracingModel(k_kinetics, t_eval=t_eval)
+
+# ode_func = N15TracingModel(ccts=ccts, t_eval=t_eval, device=device)
+# ode_func = N15TracingModel_V2( t_eval=t_eval)
+ode_func = N15TracingModel_V1(k_kinetics=k_kinetics, t_eval=t_eval).to(device)
+
 if os.path.exists(model_save_path) and restore_model:
     print(f"loadding from {model_save_path}")
     ode_func.load_state_dict(torch.load(model_save_path))
     ode_func.eval()
 
-device = "cpu"
+
 params = ode_func.parameters()
 batch_y0, batch_t, batch_y = torch.tensor(c0, dtype=torch.float64).to(device), \
     torch.tensor(t_eval, dtype=torch.float64).to(device), \
     torch.tensor(ccts, dtype=torch.float64).to(device)
 
 optimizer = optim.RAdam(params, lr=lr)
-loss_func = N15Loss(method=loss_method)
+loss_func = N15Loss(method=loss_method,device=device).to(device)
 # loss_func = nn.HuberLoss(delta=0.1)
 
 
 epoch = 100000
-pbar = tqdm(total=epoch, ascii=True, ncols=300)
+pbar = tqdm(total=epoch, ascii=True, ncols=100)
 
+min_loss = torch.inf
 
-with torch.no_grad():
-    pred_y = tf_odeint(ode_func, batch_y0, batch_t, method=method, atol=atol, rtol=rtol, options=options).to(device)
-    # min_loss = loss_func(pred_y, batch_y)
-    min_loss = torch.inf
+# with torch.no_grad():
+#     pred_y = tf_odeint_adj(ode_func, batch_y0, batch_t, method=method, atol=atol, rtol=rtol, options=options).to(device)
+#     # min_loss = loss_func(pred_y, batch_y)
+#     min_loss = torch.inf
 
-    dataset_pred = deepcopy(dataset)
-    dataset_pred.set_as_sim_dataset(t_eval=t_eval, y0=None, args=None, nowy=pred_y.detach().numpy())
-    # core.plot_dataset(dataset, dataset_pred)
+#     dataset_pred = deepcopy(dataset)
+#     dataset_pred.set_as_sim_dataset(t_eval=t_eval, y0=None, args=None, nowy=pred_y.detach().numpy())
+#     # core.plot_dataset(dataset, dataset_pred)
 
 
 with DynamicShowPlot() as fig:
@@ -177,13 +182,15 @@ with DynamicShowPlot() as fig:
         loss.backward()
         optimizer.step()
 
-        if not hasattr(ode_func, 'post_opti'):
-            continue
+        if hasattr(ode_func, 'post_opti'):
+            ode_func.post_opti()
+        
         eval_times = ode_func.eval_times
-        ode_func.post_opti()
-
+        
+        ide_ks = ode_func.ks.cpu()
         with torch.no_grad():
-            _now = ", ".join([f"k{i + 1}:{k.detach().numpy():.8f}" for i, k in enumerate(ode_func.ks)])
+            # _now = ", ".join([f"k{i + 1}:{k.detach().numpy():.8f}" for i, k in enumerate(ide_ks)])
+            _now = ""
             pbar.set_description(f'Iter {itr:04d} | Total Loss {loss.item():.4f} {eval_times} min_loss:{min_loss:.4f} {_now}')
             pbar.update(1)
             pbar.refresh()
@@ -195,7 +202,7 @@ with DynamicShowPlot() as fig:
 
             if itr % vis_it == 0:
                 dataset_pred = deepcopy(dataset)
-                dataset_pred.set_as_sim_dataset(t_eval=t_eval, y0=None, args=None, nowy=pred_y.detach().numpy())
+                dataset_pred.set_as_sim_dataset(t_eval=t_eval, y0=None, args=None, nowy=pred_y.cpu().detach().numpy())
                 plot_dataset(dataset, dataset_pred, fig=fig)
 
 # _now = ", ".join([f"{n}:{p.detach().numpy()}" for n, p in ode_func.named_parameters()])

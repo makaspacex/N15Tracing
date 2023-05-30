@@ -125,11 +125,11 @@ class DynamicShowPlot(object):
     def __enter__(self):
         import matplotlib as mpl
         self.old_backend = mpl.get_backend()
-        # mpl.use('macosx')
+        mpl.use('TkAgg')
         return self.fig
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        plt.pause(0.05)
+        plt.pause(0.1)
         # plt.ioff()
         import matplotlib as mpl
         mpl.use(self.old_backend)

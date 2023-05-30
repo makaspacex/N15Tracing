@@ -313,31 +313,30 @@ class N15TracingModel_V1(torch.nn.Module):
 
 class N15TracingModel(torch.nn.Module):
 
-    def __init__(self, ccts, t_eval):
+    def __init__(self, ccts, t_eval, device="cpu"):
         super(N15TracingModel, self).__init__()
 
         self.ks_net = nn.Sequential(
             nn.Linear(40,256),
             nn.Linear(256,11),
             nn.Softmax()
-        )
+        ).to(device)
 
         self.kk_net = nn.Sequential(
             nn.Linear(40, 256),
             nn.Linear(256, 11),
             nn.Softmax()
-        )
-        self.ccts = torch.as_tensor(ccts)
-
-
-        self.post_opti()
+        ).to(device)
+        
+        self.ccts = torch.as_tensor(ccts, dtype=torch.float32).to(device)
+        
         self.t_eval = t_eval
-
         self.eval_times = 0
+        self.device = device
 
     def pre_opti(self):
-        self.ks = self.ks_net(self.ccts)
-        self.kk = self.kk_net(self.ccts)
+        self.ks = self.ks_net(self.ccts.reshape(-1))
+        self.kk = self.kk_net(self.ccts.reshape(-1))
 
 
     def post_opti(self, reset=False):
@@ -364,6 +363,8 @@ class N15TracingModel(torch.nn.Module):
 
 
     def forward(self, t, c):
+        self.pre_opti()
+        
         self.eval_times += 1
 
         ks, kk = self.ks, self.kk
@@ -400,14 +401,15 @@ class N15TracingModel(torch.nn.Module):
         return _y
 class N15Loss(nn.Module):
 
-    def __init__(self, method="r2l1", delta=0.1):
+    def __init__(self, method="r2l1", delta=0.1, device="cpu"):
         super(N15Loss, self).__init__()
         self.method = method
         self.delta = delta
+        self.device = device
 
     def forward(self, pred, target):
 
-        _l = torch.tensor(0.)
+        _l = torch.tensor(0.).to(self.device)
 
         if self.method == 'r2':
             target_mean = torch.mean(target, dim=0)
