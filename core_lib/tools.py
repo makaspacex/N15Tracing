@@ -133,3 +133,13 @@ class DynamicShowPlot(object):
         # plt.ioff()
         import matplotlib as mpl
         mpl.use(self.old_backend)
+
+from tqdm.std import tqdm
+def set_pbar_start(pbar:tqdm, n:int):
+    pbar.n = n
+    pbar.last_print_n = n
+    pbar.start_t = time.time()
+    pbar.last_print_t = time.time()
+    time.sleep(0.5)
+    pbar.refresh()
+    return pbar
