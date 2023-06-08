@@ -163,10 +163,9 @@ class MyDataset(object):
         assert len(ret) == len(real_names), "some name not found"
         return ret
     
-    
     def get_real_ccts(self):
         names = self.get_real_cct_names()
-        return self.df[names]
+        return self.df[names].values
 
     def get_rates(self):
         return self.rates
