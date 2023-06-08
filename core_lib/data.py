@@ -144,7 +144,29 @@ class MyDataset(object):
 
         self.df = df_new
         self._setup()
-
+    
+    def get_cct_names(self):
+        return self.cct_names
+    
+    def get_real_cct_names(self):
+        return ["xNH3","xNO3","xNO2","ANH3","ANO3","ANO2"]
+    
+    def get_real_cct_names_indexs(self):
+        real_names = self.get_real_cct_names()
+        all_names = self.get_cct_names()
+        ret = []
+        for n1 in real_names:
+            for i, n2 in enumerate(all_names):
+                if n1 == n2:
+                    ret.append(i)
+                    break
+        assert len(ret) == len(real_names), "some name not found"
+        return ret
+    
+    
+    def get_real_ccts(self):
+        names = self.get_real_cct_names()
+        return self.df[names]
 
     def get_rates(self):
         return self.rates

@@ -168,6 +168,16 @@ class MyDataset(object):
 
     def get_cct(self):
         return self.cct
+    
+    def get_cct_names(self):
+        return self.cct_names
+    
+    def get_real_cct_names(self):
+        return ["xNH3","xNO3","xNO2","ANH3","ANO3","ANO2"]
+    
+    def get_real_ccts(self):
+        names = self.get_real_cct_names()
+        return self.df[names]
 
     def get_var_col_names(self):
         return self.cct_names, self.rates_names, self.error_names
