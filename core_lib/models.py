@@ -129,8 +129,22 @@ def distance_func(epsilon, obs_data, sim_data):
     # dis = -0.5 * ((obs_data - sim_data) / epsilon / 10) ** 2
     dis = -0.5 * ((obs_data - sim_data) * epsilon) ** 2
     return dis
+
+def distance_func_v2(epsilon, obs_data, sim_data):
+    # dis = -0.5 * ((obs_data - sim_data) / epsilon / 10) ** 2
+    dis = -0.5 * (np.abs(obs_data - sim_data) * epsilon) ** 2
+    return dis
+
 MY_EPSILON =   [1,   1,  100,   0.1, 10,   10, 10, 10, 1000, 10]
 
+# return ["xNH3", "xNO3", "xNO2","ANH3","ANO3","ANO2"]
+# return ['xNH3', 'xNO3', 'xNO2', 'xNOrg', 'xN2', 'ANH3', 'ANO3', 'ANO2', 'ANOrg', 'AN2']
+ALL_COLUMES = ['xNH3', 'xNO3', 'xNO2', 'xNOrg', 'xN2', 'ANH3', 'ANO3', 'ANO2', 'ANOrg', 'AN2']
+REAL_COLUMES = ["xNH3", "xNO3", "xNO2","ANH3","ANO3", "ANO2"]
+FAKE_COLUMES = ['xNOrg', 'xN2', 'ANOrg', 'AN2']
+
+# 去除无效数据的权重值
+MY_EPSILON_TEE =   [1,   1,  100,   0, 0,   10, 10, 10, 0, 0]
 
 class KNet(torch.nn.Module):
     def __init__(self):

@@ -148,6 +148,15 @@ class MyDataset(object):
     def get_cct_names(self):
         return self.cct_names
     
+    def set_random(self, c_names):
+        for c_name in c_names:
+            ori_data = self.df[c_name]
+            _max = np.max(ori_data)
+            self.df[c_name] = np.random.rand(len(ori_data)) * _max
+        
+    def get_fake_cct_names(self):
+        return ['xNOrg', 'xN2', 'ANOrg', 'AN2']
+    
     def get_real_cct_names(self):
         return ["xNH3","xNO3","xNO2","ANH3","ANO3","ANO2"]
         # return ['xNH3', 'xNO3', 'xNO2', 'xNOrg', 'xN2', 'ANH3', 'ANO3', 'ANO2', 'ANOrg', 'AN2']
