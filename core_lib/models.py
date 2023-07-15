@@ -73,22 +73,14 @@ def get_model(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_ty
                 c0.append(pm.HalfNormal(f"{c_name}_s", sigma=_maxx))
         else:
             c0 = df[cct_names].values[0]
-        # for c_name in cct_names:
-        #     _maxx = df[c_name].values.max()
-        #     _c0 = df[c_name].values[0]
-        #     _sigma_c0 = _c0 * np.pi **0.5 / 2 ** 0.5
-
-        #     # half_c0 = pm.HalfNormal(f"{c_name}_s", sigma=_maxx)
-        #     half_c0 = pm.HalfNormal(f"{c_name}_s", sigma=_sigma_c0)
-        #     # dira_c0 = pm.DiracDelta(f"{c_name}_s",c=_c0)
-        #     c0.append(half_c0)
         print(c0)
         sim = pm.Simulator("sim", competition_model, params=(t_eval, c0, parames, k_kinetics),distance=distance, epsilon=epsilon, observed=ccts)
     return mcmc_model
 
 
 def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
-
+    import sunode
+    import sunode.wrappers
     df = dataset.get_df()
     times = df['time'].values
     
@@ -132,7 +124,6 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
             pm.Normal(f'{c_name}', mu=y_hat[f"{c_name}"], sigma=sd, observed=df[f"{c_name}"].values)
             pm.Deterministic(f'{c_name}_mu', y_hat[f"{c_name}"])
     return mcmc_model
-
 
 def distance_func(epsilon, obs_data, sim_data):
     # dis = -0.5 * ((obs_data - sim_data) / epsilon / 10) ** 2
@@ -240,7 +231,7 @@ class N15TracingModel_V1(torch.nn.Module):
         super(N15TracingModel_V1, self).__init__()
 
         self.ks = nn.Parameter(torch.rand(11))
-        setattr(self.ks, 'constrain', [1e-6, 0.01])
+        setattr(self.ks, 'constrain', [1e-6, 1e-3])
 
         self.k_kinetics = k_kinetics
         self.post_opti()

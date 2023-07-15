@@ -14,6 +14,22 @@ from scipy.integrate import odeint, solve_ivp
 import sys
 from contextlib import redirect_stdout
 
+import signal
+from contextlib import contextmanager
+
+class TimeoutException(Exception): 
+    pass
+
+@contextmanager
+def time_limit(seconds):
+    def signal_handler(signum, frame):
+        raise TimeoutException("Timed out!")
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
 
 def get_format_time(f_s=None):
     haomiao = str(time.time()).split('.')[-1]
@@ -125,7 +141,7 @@ class DynamicShowPlot(object):
     def __enter__(self):
         import matplotlib as mpl
         self.old_backend = mpl.get_backend()
-        mpl.use('TkAgg')
+        # mpl.use('TkAgg')
         return self.fig
 
     def __exit__(self, exc_type, exc_val, exc_tb):

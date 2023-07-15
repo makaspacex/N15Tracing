@@ -150,6 +150,7 @@ class MyDataset(object):
     
     def get_real_cct_names(self):
         return ["xNH3","xNO3","xNO2","ANH3","ANO3","ANO2"]
+        # return ['xNH3', 'xNO3', 'xNO2', 'xNOrg', 'xN2', 'ANH3', 'ANO3', 'ANO2', 'ANOrg', 'AN2']
     
     def get_real_cct_names_indexs(self):
         real_names = self.get_real_cct_names()
@@ -244,5 +245,6 @@ def plot_dataset(dataset, dataset_pred=None, fig=None):
         # axes.set_title(f"{y_name}", fontsize=14)
 
     plt.tight_layout()
+    # plt.tight()
     plt.draw()
     plt.pause(0.1)

@@ -69,6 +69,9 @@ dataset.set_as_sim_dataset(t_eval, c0, t0=0.5, args=(ks_true, k_kinetics))
 # --------------------------------
 df = dataset.get_df()
 ccts = df[cct_names].values
+real_ccts = dataset.get_real_ccts()
+real_index = dataset.get_real_cct_names_indexs()
+
 # plot_dataset(dataset, dataset)
 
 
@@ -85,7 +88,7 @@ vis_it = 2
 check_interval = 10
 
 
-atol, rtol = 1e-10, 1e-8
+atol, rtol = 1e-8, 1e-8
 restore_model = False
 
 
@@ -121,7 +124,7 @@ loss_method = "r2l1"
 
 
 model_save_path = f"runtime/model-best-{method}.pth"
-device = "cuda:0"
+device = "cpu"
 
 
 # ode_func = N15TracingModel(ccts=ccts, t_eval=t_eval, device=device)

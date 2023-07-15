@@ -62,7 +62,7 @@ def get_dcdt_func_for_sunode(k_kinetics):
     return _dcdt_func
 
 
-def get_dcdts_for_scipy(c_first=False):
+def get_dcdts_for_scipy(c_first=False, indexs="all"):
 
     def dcdt_func(c, t, *args):
         # print(c, t, ks, k_kinetics)
@@ -154,7 +154,7 @@ def competition_model(rng, t_eval, y0,  ks, k_kinetics, size=None):
 
 def xj_diff_solve_ivp(y0, t_eval, args, ivp_first=False):
     if ivp_first:
-        y_s = solve_ivp(get_dcdts_for_solve_ivp, t_span=(t_eval[0], t_eval[-1]), y0=y0, t_eval=t_eval, args=args)
+        y_s = solve_ivp(get_dcdts_for_solve_ivp(), t_span=(t_eval[0], t_eval[-1]), y0=y0, t_eval=t_eval, args=args)
     if ivp_first and len(y_s.t) == len(t_eval):
         y = y_s.y.transpose(1,0)
     else:
