@@ -362,7 +362,7 @@ def get_predict_starts(cct_names, idata):
 def plot_dataset(dataset, dataset_pred=None, fig=None):
 
     df = dataset.get_df()
-    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    cct_names, error_names = dataset.get_var_col_names()
 
     cols = 5
     rows = math.ceil(len(cct_names) / cols)
@@ -417,7 +417,7 @@ def r2_loss(pred, y):
 
 def get_model(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_type=1, distance="gaussian", epsilon=1):
     df = dataset.get_df()
-    cct_names, _, _ = dataset.get_var_col_names()
+    cct_names, _ = dataset.get_var_col_names()
     ccts = dataset.get_cct()
 
     mcmc_model = pm.Model()
@@ -463,7 +463,7 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
 
     errors = dataset.get_errors()
     rates = dataset.get_rates()
-    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    cct_names, error_names = dataset.get_var_col_names()
 
     # 定义参数优化模型
     mcmc_model = pm.Model()
@@ -610,7 +610,7 @@ if __name__ == '__main__':
 
     dataset_ori = MyDataset(db_csv_path)
     df_ori = dataset_ori.get_df()
-    cct_names, rates_names, error_names = dataset_ori.get_var_col_names()
+    cct_names,  error_names = dataset_ori.get_var_col_names()
     c0 = df_ori[cct_names].iloc[0].values
     # 假设都是一级动力学
     k_kinetics = np.repeat(1, 11).astype(np.uint8)
@@ -623,7 +623,7 @@ if __name__ == '__main__':
 
     dataset = MyDataset(db_csv_path)
     df = dataset.get_df()
-    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    cct_names,  error_names = dataset.get_var_col_names()
     c0 = df[cct_names].iloc[0].values
     dataset.set_as_sim_dataset(dcdt_func_for_odeint, t_eval, c0, t0=0.5, args=(ks, k_kinetics))
     df = dataset.get_df()

@@ -147,9 +147,20 @@ def get_dcdts_for_scipy_odeint():
 
 
 # simulator function
-def competition_model(rng, t_eval, y0,  ks, k_kinetics, size=None):
+def competition_model(rng, t_eval, y0,  ks, k_kinetics, sigma=None, size=None):
     args = (ks, k_kinetics)
     y = xj_diff_solve_ivp(y0, t_eval, args)
+    return y
+
+
+def competition_model_for_fake_data(rng, t_eval, y0,  ks, k_kinetics, dataset):
+    
+    
+    args = (ks, k_kinetics)
+    y = xj_diff_solve_ivp(y0, t_eval, args)
+    
+    dataset.get_cct()
+    
     return y
 
 # def simulator_forward_model(rng, alpha, beta, gamma, delta, xt0, yt0, sigma, size=None):

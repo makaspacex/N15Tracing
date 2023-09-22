@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pymc as pm
+from .data import MyDataset
 from .dff_odes import competition_model
+from .dff_odes import competition_model_for_fake_data
 from .dff_odes import get_dcdt_func_for_sunode
 from .dff_odes import simulator_forward_model
 
@@ -50,7 +52,7 @@ def get_target(ks, df, k_kinetics):
 
 def get_model(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_type=1, distance="gaussian", epsilon=1):
     df = dataset.get_df()
-    cct_names, _, _ = dataset.get_var_col_names()
+    cct_names, _ = dataset.get_var_col_names()
     ccts = dataset.get_cct()
     
     mcmc_model = pm.Model()
@@ -79,79 +81,6 @@ def get_model(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_ty
         sim = pm.Simulator("sim", competition_model, params=(t_eval, c0, parames, k_kinetics),distance=distance, epsilon=epsilon, observed=ccts)
     return mcmc_model
 
-def get_model_v3(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_type=1, distance="gaussian", epsilon=1):
-    df = dataset.get_df()
-    cct_names, _, _ = dataset.get_var_col_names()
-    ccts = dataset.get_cct()
-    
-    mcmc_model = pm.Model()
-    params_n = 11
-
-    parames =[]
-    c0 = []
-    pm.TruncatedNormal
-    with mcmc_model:
-        sigma = pm.HalfNormal("sigma", 1)
-        
-        for ki in range(1, params_n + 1):
-            if kf_type == 0:
-                # p_dense = pm.HalfNormal(f"k{ki}", sigma=k_sigma_priors)
-                p_dense = pm.TruncatedNormal(f"k{ki}", mu=0.001, sigma=0.001, initval=0.001, lower=0, upper=0.1)
-
-                # _sigma = ks[ki-1] * np.pi **0.5 / 2 ** 0.5
-                # p_dense = pm.HalfNormal(f"k{ki}", sigma=_sigma)
-            else:
-                p_dense = pm.Normal(f"k{ki}",mu=0, sigma=k_sigma_priors)
-            parames.append(p_dense)
-        
-        if c0_type == 1:
-            for c_name in cct_names:
-                _maxx = df[c_name].values.max()
-                c0.append(pm.HalfNormal(f"{c_name}_s", sigma=_maxx))
-        else:
-            c0 = df[cct_names].values[0]
-        print(c0)
-        pm.Simulator("CCT_Obs", simulator_forward_model, params=(t_eval, c0, parames, k_kinetics, sigma),distance=distance, epsilon=epsilon, observed=ccts)
-    return mcmc_model
-
-
-def get_model_v4(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_type=1, distance="gaussian", epsilon=1):
-    df = dataset.get_df()
-    cct_names, _, _ = dataset.get_var_col_names()
-    ccts = dataset.get_cct()
-    
-    mcmc_model = pm.Model()
-    params_n = 11
-
-    parames =[]
-    c0 = []
-    pm.TruncatedNormal
-    with mcmc_model:
-        sigma = pm.HalfNormal("sigma", 1)
-        
-        for ki in range(1, params_n + 1):
-            if kf_type == 0:
-                # p_dense = pm.HalfNormal(f"k{ki}", sigma=k_sigma_priors)
-                p_dense = pm.TruncatedNormal(f"k{ki}", mu=0.01, sigma=0.01, initval=0.001, lower=0, upper=0.01)
-
-                # _sigma = ks[ki-1] * np.pi **0.5 / 2 ** 0.5
-                # p_dense = pm.HalfNormal(f"k{ki}", sigma=_sigma)
-            else:
-                p_dense = pm.Normal(f"k{ki}",mu=0, sigma=k_sigma_priors)
-            parames.append(p_dense)
-        
-        if c0_type == 1:
-            for c_name in cct_names:
-                _maxx = df[c_name].values.max()
-                _mean = df[c_name].values.mean()
-                c0.append(pm.TruncatedNormal(f"{c_name}_s", mu=_mean, sigma=1, initval=_mean, lower=0, upper=_maxx * 1.2))
-        else:
-            c0 = df[cct_names].values[0]
-        pm.Simulator("CCT_Obs", simulator_forward_model, params=(t_eval, c0, parames, k_kinetics, sigma),distance=distance, epsilon=epsilon, observed=ccts)
-    return mcmc_model
-
-
-
 def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
     import sunode
     import sunode.wrappers
@@ -160,7 +89,7 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
     
     errors = dataset.get_errors()
     rates = dataset.get_rates()
-    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    cct_names, error_names = dataset.get_var_col_names()
         
     # 定义参数优化模型
     mcmc_model = pm.Model()
@@ -199,6 +128,108 @@ def get_model2(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0):
             pm.Deterministic(f'{c_name}_mu', y_hat[f"{c_name}"])
     return mcmc_model
 
+def get_model_v3(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_type=1, distance="gaussian", epsilon=1):
+    df = dataset.get_df()
+    cct_names, _ = dataset.get_var_col_names()
+    ccts = dataset.get_cct()
+    
+    mcmc_model = pm.Model()
+    params_n = 11
+
+    parames =[]
+    c0 = []
+    pm.TruncatedNormal
+    with mcmc_model:
+        sigma = pm.HalfNormal("sigma", 1)
+        
+        for ki in range(1, params_n + 1):
+            if kf_type == 0:
+                # p_dense = pm.HalfNormal(f"k{ki}", sigma=k_sigma_priors)
+                p_dense = pm.TruncatedNormal(f"k{ki}", mu=0.001, sigma=0.001, initval=0.001, lower=0, upper=0.1)
+            else:
+                p_dense = pm.Normal(f"k{ki}",mu=0, sigma=k_sigma_priors)
+            
+            parames.append(p_dense)
+        
+        if c0_type == 1:
+            for c_name in cct_names:
+                _maxx = df[c_name].values.max()
+                c0.append(pm.HalfNormal(f"{c_name}_s", sigma=_maxx))
+        else:
+            c0 = df[cct_names].values[0]
+        print(c0)
+        pm.Simulator("CCT_Obs", competition_model, params=(t_eval, c0, parames, k_kinetics, sigma),distance=distance, epsilon=epsilon, observed=ccts)
+    return mcmc_model
+
+def get_model_v4(dataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_type=1, distance="gaussian", epsilon=1):
+    df = dataset.get_df()
+    cct_names, _ = dataset.get_var_col_names()
+    ccts = dataset.get_cct()
+    
+    mcmc_model = pm.Model()
+    params_n = 11
+
+    parames =[]
+    c0 = []
+    pm.TruncatedNormal
+    with mcmc_model:
+        sigma = pm.HalfNormal("sigma", 10)
+        
+        for ki in range(1, params_n + 1):
+            if kf_type == 0:
+                # p_dense = pm.HalfNormal(f"k{ki}", sigma=k_sigma_priors)
+                p_dense = pm.TruncatedNormal(f"k{ki}", mu=0.001, sigma=0.001, initval=0.001, lower=0)
+
+                # _sigma = ks[ki-1] * np.pi **0.5 / 2 ** 0.5
+                # p_dense = pm.HalfNormal(f"k{ki}", sigma=_sigma)
+            else:
+                p_dense = pm.Normal(f"k{ki}",mu=0, sigma=k_sigma_priors)
+            parames.append(p_dense)
+        
+        if c0_type == 1:
+            for c_name in cct_names:
+                _maxx = df[c_name].values.max()
+                _min = df[c_name].values.min()
+                _mean = df[c_name].values.mean()
+                c0.append(pm.TruncatedNormal(f"{c_name}_s", mu=_mean, sigma=1, initval=_mean, lower=0, upper=_maxx * 1.3))
+        else:
+            c0 = df[cct_names].values[0]
+        pm.Simulator("CCT_Obs", simulator_forward_model, params=(t_eval, c0, parames, k_kinetics, sigma),distance=distance, epsilon=epsilon, observed=ccts)
+    return mcmc_model
+
+def get_model_v5(dataset:MyDataset, t_eval, k_kinetics, k_sigma_priors=0.01, kf_type=0, c0_type=1, distance="gaussian", epsilon=1):
+    df = dataset.get_df()
+    cct_names, _ = dataset.get_var_col_names()
+    ccts = dataset.get_cct()
+    
+    mcmc_model = pm.Model()
+    params_n = 11
+
+    parames =[]
+    c0 = []
+    
+    with mcmc_model:
+        for ki in range(1, params_n + 1):
+            if kf_type == 0:
+                p_dense = pm.HalfNormal(f"k{ki}", sigma=k_sigma_priors)
+                # _sigma = ks[ki-1] * np.pi **0.5 / 2 ** 0.5
+                # p_dense = pm.HalfNormal(f"k{ki}", sigma=_sigma)
+            else:
+                p_dense = pm.Normal(f"k{ki}",mu=0, sigma=k_sigma_priors)
+            parames.append(p_dense)
+        
+        if c0_type == 1:
+            for c_name in cct_names:
+                _maxx = df[c_name].values.max()
+                c0.append(pm.HalfNormal(f"{c_name}_s", sigma=_maxx))
+        else:
+            c0 = df[cct_names].values[0]
+
+        print(c0)
+        sim = pm.Simulator("sim", competition_model_for_fake_data, params=(t_eval, c0, parames, k_kinetics, dataset),distance=distance, epsilon=epsilon, observed=ccts)
+    return mcmc_model
+
+
 def distance_func(epsilon, obs_data, sim_data):
     # dis = -0.5 * ((obs_data - sim_data) / epsilon / 10) ** 2
     dis = -0.5 * ((obs_data - sim_data) * epsilon) ** 2
@@ -225,7 +256,7 @@ FAKE_COLUMES = ['xNOrg', 'xN2', 'ANOrg', 'AN2']
 
 # 去除无效数据的权重值
 # MY_EPSILON_TEE =   [1,   1,  100,   0, 0,   10, 10, 10, 0, 0]
-MY_EPSILON_TEE = [1,   1,  100,   0.00001, 0.00001,   10, 10, 10, 0.00001, 0.00001]
+MY_EPSILON_TEE_v2 = [1,   1,  100,   0.00001, 0.00001,   10, 10, 10, 0.00001, 0.00001]
 
 MY_EPSILON_TEE_v3 =   [1, 1, 1e-2, 1e8, 1e8, 1, 1e-2, 1e-2, 1e8, 1e8]
 

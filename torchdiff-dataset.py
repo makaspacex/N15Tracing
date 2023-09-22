@@ -56,7 +56,7 @@ df = dataset_ori.get_df()
 k_kinetics = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).astype(np.uint8)
 dataset = dataset_ori
 t_eval = df['time'].values
-cct_names, _, _ = dataset.get_var_col_names()
+cct_names, _ = dataset.get_var_col_names()
 c0 = df[cct_names].iloc[0].values
 # ------------ simulate data -----------------------
 
@@ -69,9 +69,6 @@ dataset.set_as_sim_dataset(t_eval, c0, t0=0.5, args=(ks_true, k_kinetics))
 # --------------------------------
 df = dataset.get_df()
 ccts = df[cct_names].values
-real_ccts = dataset.get_real_ccts()
-real_index = dataset.get_real_cct_names_indexs()
-
 # plot_dataset(dataset, dataset)
 
 

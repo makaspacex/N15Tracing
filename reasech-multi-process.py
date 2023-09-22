@@ -158,7 +158,7 @@ def get_format_time(f_s=None):
 def plot_dataset(dataset, dataset_pred=None):
     
     df = dataset.get_df()
-    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    cct_names, error_names = dataset.get_var_col_names()
     
     cols = 5
     rows = math.ceil(len(cct_names) / cols)
@@ -297,7 +297,7 @@ def get_model(dataset, k_kinetics, k_sigma_priors=0.01, kf_type=0):
     
     errors = dataset.get_errors()
     rates = dataset.get_rates()
-    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    cct_names, error_names = dataset.get_var_col_names()
         
     # 定义参数优化模型
     mcmc_model = pm.Model()

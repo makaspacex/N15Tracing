@@ -25,48 +25,48 @@ class MyDataset(object):
         df = pd.read_csv(dataset_path)
 
         self.df = df
-        self._setup()
+        
+        # self._setup()
 
-    def _setup(self):
+    # def _setup(self):
 
-        df = self.df
-        # 数据初步处理
-        # 计算反应速率rate，初始速率固定设置为0
-        for c_i, (col_name, col_sr) in enumerate(df.items()):
-            if "error" in col_name or "time" in col_name or "rate" in col_name:
-                continue
-            rate_col_name = f"{col_name}_rate"
-            rates = []
-            pre_t = None
-            pre_v = None
-            for th, (index, value) in zip(df['time'], col_sr.items()):
-                if int(index) == 0:
-                    rates.append(0.0)
-                    pre_t = th
-                    pre_v = value
-                    continue
+    #     df = self.df
+    #     # 数据初步处理
+    #     # 计算反应速率rate，初始速率固定设置为0
+    #     for c_i, (col_name, col_sr) in enumerate(df.items()):
+    #         if "error" in col_name or "time" in col_name or "rate" in col_name:
+    #             continue
+    #         rate_col_name = f"{col_name}_rate"
+    #         rates = []
+    #         pre_t = None
+    #         pre_v = None
+    #         for th, (index, value) in zip(df['time'], col_sr.items()):
+    #             if int(index) == 0:
+    #                 rates.append(0.0)
+    #                 pre_t = th
+    #                 pre_v = value
+    #                 continue
 
-                delta_t = th - pre_t
-                delta_value = value - pre_v
-                # print(col_name, index, pre_t, th, pre_v ,value)
-                rates.append(delta_value / delta_t)
-                pre_t = th
-                pre_v = value
-            df[rate_col_name] = rates
+    #             delta_t = th - pre_t
+    #             delta_value = value - pre_v
+    #             # print(col_name, index, pre_t, th, pre_v ,value)
+    #             rates.append(delta_value / delta_t)
+    #             pre_t = th
+    #             pre_v = value
+    #         df[rate_col_name] = rates
 
-        # 准备输出值 Y
-        self.cct_names = []
-        for x in self.df.columns:
-            if "time" in x or "error" in x or "rate" in x:
-                continue
-            self.cct_names.append(x)
-        self.rates_names = [f"{x}_rate" for x in self.cct_names]
-        self.error_names = [f"{x}-error" for x in self.cct_names]
+    #     # 准备输出值 Y
+    #     self.cct_names = []
+    #     for x in self.df.columns:
+    #         if "time" in x or "error" in x or "rate" in x:
+    #             continue
+    #         self.cct_names.append(x)
+    #     self.rates_names = [f"{x}_rate" for x in self.cct_names]
+    #     self.error_names = [f"{x}-error" for x in self.cct_names]
 
-        self.cct = self.df[self.cct_names].values
-        self.rates = self.df[self.rates_names].values
-        self.errors = self.df[self.error_names].values
-
+    #     self.cct = self.df[self.cct_names].values
+    #     self.rates = self.df[self.rates_names].values
+    #     self.errors = self.df[self.error_names].values
 
     def set_as_sim_dataset(self, t_eval, y0, args, t0=None, nowy=None):
         # 默认情况下 t0= t_eval[0]
@@ -143,7 +143,7 @@ class MyDataset(object):
             df_new[f"{c_name}-error"] = 0.001
 
         self.df = df_new
-        self._setup()
+        # self._setup()
     
     def get_cct_names(self):
         return self.cct_names
@@ -161,24 +161,39 @@ class MyDataset(object):
         return ["xNH3","xNO3","xNO2","ANH3","ANO3","ANO2"]
         # return ['xNH3', 'xNO3', 'xNO2', 'xNOrg', 'xN2', 'ANH3', 'ANO3', 'ANO2', 'ANOrg', 'AN2']
     
-    def get_real_cct_names_indexs(self):
-        real_names = self.get_real_cct_names()
-        all_names = self.get_cct_names()
-        ret = []
-        for n1 in real_names:
-            for i, n2 in enumerate(all_names):
-                if n1 == n2:
-                    ret.append(i)
-                    break
-        assert len(ret) == len(real_names), "some name not found"
-        return ret
+    # def get_real_cct_names_indexs(self):
+    #     real_names = self.get_real_cct_names()
+    #     all_names = self.get_cct_names()
+    #     ret = []
+    #     for n1 in real_names:
+    #         for i, n2 in enumerate(all_names):
+    #             if n1 == n2:
+    #                 ret.append(i)
+    #                 break
+    #     assert len(ret) == len(real_names), "some name not found"
+    #     return ret
     
-    def get_real_ccts(self):
-        names = self.get_real_cct_names()
-        return self.df[names].values
+    @property
+    def cct(self):
+        return self.df[self.cct_names].values
 
-    def get_rates(self):
-        return self.rates
+    @property
+    def cct_names(self):
+        cct_names = []
+        for x in self.df.columns:
+            _lowx = x.lower()
+            if "time" in _lowx or "error" in _lowx or "rate" in _lowx:
+                continue
+            cct_names.append(x)
+        return cct_names
+    
+    @property
+    def errors(self):
+        return self.df[self.error_names].values
+    
+    @property
+    def error_names(self):
+        return [f"{x}-error" for x in self.cct_names]
 
     def get_df(self):
         return self.df
@@ -190,14 +205,12 @@ class MyDataset(object):
         return self.cct
 
     def get_var_col_names(self):
-        return self.cct_names, self.rates_names, self.error_names
+        return self.cct_names, self.error_names
 
     def get_weights(self):
         max_value = self.df[self.cct_names].describe().loc['max'].values.max()
-
         vars_max = self.df[self.cct_names].describe().loc['max']
         weights = (max_value / vars_max).values
-
         return np.array(weights)
 
     def get_vars_max(self):
@@ -208,7 +221,7 @@ class MyDataset(object):
 def plot_dataset(dataset, dataset_pred=None, fig=None):
 
     df = dataset.get_df()
-    cct_names, rates_names, error_names = dataset.get_var_col_names()
+    cct_names, error_names = dataset.get_var_col_names()
 
     cols = 5
     rows = math.ceil(len(cct_names) / cols)
